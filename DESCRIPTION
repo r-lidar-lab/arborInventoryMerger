@@ -1,0 +1,20 @@
+Package: arborInventoryMerger
+Type: Package
+Title: Improves the arbor's instance segmentation using an accurate spatialized inventory
+Version: 1.0.0
+Author: Jean-Romain Roussel
+Maintainer: Jean-Romain Roussel <info@r-lidar.com>
+Description: Improves the arbor's instance segmentation using an accurate spatialized inventory.
+License: MIT + file LICENSE
+Encoding: UTF-8
+LazyData: true
+Imports: 
+  graphics,
+  lidR (>= 4.2.2),
+  methods,
+  arbor,
+  rgl,
+  terra,
+  sf,
+  utils
+Config/roxygen2/version: 8.1.0
