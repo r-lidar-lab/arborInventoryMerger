@@ -15,6 +15,8 @@ pak::pak("r-lidar-lab/arborInventoryMerger")
 
 ## Tutorial
 
+(See also [mre.R](https://github.com/r-lidar-lab/arborInventoryMerger/blob/master/inst/extdata/mre.R) with all the code you need.)
+
 ### 1. Segmentation
 
 First, we need a segmented point cloud. Segmentation must be performed with [arbor](https://github.com/r-lidar/arbor) following the [guidelines](https://r-lidar.github.io/arbor_book/). We need both the segmented point cloud and the corresponding DTM.
