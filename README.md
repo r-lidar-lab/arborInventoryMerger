@@ -23,7 +23,7 @@ pak::pak("r-lidar-lab/arborInventoryMerger")
 
 ## Tutorial
 
-Users can find a more reproducible and comprehensive script in [MRE.R](inst/extdata/mre.R). However, please read the tutorial first, as it provides the necessary explanations.
+(See also [mre.R](https://github.com/r-lidar-lab/arborInventoryMerger/blob/master/inst/extdata/mre.R) with all the code you need.)
 
 ### 1. Segmentation
 
