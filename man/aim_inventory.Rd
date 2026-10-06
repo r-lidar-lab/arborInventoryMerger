@@ -10,11 +10,12 @@ aim_inventory(data, dtm)
 \item{data}{A data frame containing tree inventory records. The following columns
 and their authorized variations (case-insensitive) are accepted:
 \describe{
-  \item{\code{ID_Arbre}}{Tree unique identifier. Authorized names: \code{ID_Arbre}, \code{Tree_ID}, \code{TreeID}, \code{ID}.}
-  \item{\code{X_correg}}{X coordinate (metres). Authorized names: \code{X_correg}, \code{X_corrected}, \code{X_coord}, \code{X}.}
-  \item{\code{Y_correg}}{Y coordinate (metres). Authorized names: \code{Y_correg}, \code{Y_corrected}, \code{Y_coord}, \code{Y}.}
+  \item{\code{ID_Arbre}}{Tree unique identifier. Authorized names: \code{ID_Arbre}, \code{Tree_ID}, \code{TreeID}, \code{ID}, \code{IDtree}.}
+  \item{\code{X_correg}}{X coordinate (metres). Authorized names: \code{X_correg}, \code{X_corrected}, \code{X_coord}, \code{X}, \code{CenterX}.}
+  \item{\code{Y_correg}}{Y coordinate (metres). Authorized names: \code{Y_correg}, \code{Y_corrected}, \code{Y_coord}, \code{Y}, \code{CenterY}.}
   \item{\code{DHP}}{Diameter at breast height. Authorized names: \code{DHP}, \code{DBH}.}
-  \item{\code{POM}}{Point of measurement height. Authorized names: \code{POM}, \code{HT_POM}, \code{Point_of_measurement}.}
+  \item{\code{POM}}{Point of measurement height. Authorized names: \code{POM}, \code{HT_POM}, \code{Point_of_measurement}. (Optional if \code{Z} is provided).}
+  \item{\code{Z}}{Absolute elevation above sea level. Authorized names: \code{Z}, \code{Z_coord}, \code{Elevation}, \code{Alt}, \code{Altitude}. (Optional if \code{POM} is provided).}
 }}
 
 \item{dtm}{A \code{\link[terra]{SpatRaster}} object representing the Digital Terrain Model (DTM) used to sample ground surface elevation.}
@@ -32,15 +33,17 @@ and generates a 3D (`XYZ`) `sf` point object representing tree stem positions.
 \details{
 The function automatically detects and standardizes non-standard column names
 using case-insensitive regular expression matching. Columns are internally mapped to
-canonical names (`ID_Arbre`, `X_correg`, `Y_correg`, `DHP`, `POM`).\cr\cr
+canonical names (`ID_Arbre`, `X_correg`, `Y_correg`, `DHP`, `POM`, `Z`).\cr\cr
 Validation checks performed:
 \itemize{
   \item \strong{Unit Conversion}: Measurements (`DHP`, `POM`) are checked for scale.
         Values consistently exceeding unit thresholds are converted from centimetres to metres.
-  \item \strong{Spatial Extraction}: Elevation (`Z`) is derived by sampling the DTM raster
-        at `(X_correg, Y_correg)` coordinates and adding the Point of Measurement (`POM`).
-        Rows with missing spatial data are discarded with a warning.
-  \item \strong{Topology Check}: Overlapping tree stem buffers (calculated from `DHP`)
+  \item \strong{Spatial Extraction & Elevation Handling}:
+        If \code{Z} is not present in the input table, elevation (\code{Z}) is derived by sampling
+        the DTM raster at \code{(X_correg, Y_correg)} coordinates and adding \code{POM}.
+        If \code{Z} is present in the input table, \code{Z} is kept as is and \code{POM} is calculated as \code{Z - DTM}.
+        Rows with missing spatial or raster coverage are discarded with a warning.
+  \item \strong{Topology Check}: Overlapping tree stem buffers (calculated from \code{DHP})
         are evaluated and flagged if substantial overlap exists between tree stems.
 }
 }

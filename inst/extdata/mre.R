@@ -29,7 +29,10 @@ ggplot(inventory, aes(color = as.factor(ID_Arbre))) + geom_sf() +
   guides(color="none") +
   theme_bw()
 
-# Quick visualization of what is happening for tree 79
+# Pre-processing
+las <- aim_disentangle_ids(las, inventory)
+
+# Quick visualization of what is happening for tree 79 with internal functions
 tree <- dplyr::filter(inventory, ID_Arbre == 79)
 res  <- arborInventoryMerger:::aim_fit_tree(las, tree)
 arborInventoryMerger:::aim_view(las, tree, res)

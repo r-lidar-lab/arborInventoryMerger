@@ -1,3 +1,72 @@
+#' Disentangle Tree IDs Between Point Cloud Data and Inventory
+#'
+#' Identifies overlapping tree IDs between a point cloud object and a forest
+#' inventory dataset, remapping conflicting tree IDs.
+#'
+#' If a tree has an ID (e.g., 54) in the point cloud and the inventory also
+#' contains an ID = 54, they typically correspond to two different trees (the
+#' probability that they represent the same tree is extremely low). In some
+#' circumstances, this creates entangled IDs. To avoid complex downstream errors,
+#' users can first apply \code{aim_disentangle_ids()}. The function remaps the
+#' IDs in the point cloud such that there is no ID overlap between the point
+#' cloud and the inventory.
+#'
+#' @param las A \code{LAS} object containing point cloud data with a \code{treeID} attribute.
+#' @param inventory An \code{sf} object containing forest inventory data with an \code{ID_Arbre} column.
+#'
+#' @seealso [aim_inventory()]
+#'
+#' @return A \code{LAS} object with updated tree IDs, or the original \code{LAS} object
+#'   if no matching IDs are found.
+#' @export
+#' @md
+aim_disentangle_ids <- function(las, inventory) {
+  # --- Defensive Programming / Input Validation ---
+  if (!inherits(las, "LAS")) {
+    stop("Argument 'las' must be a valid 'LAS' object.")
+  }
+  
+  if (!"treeID" %in% names(las)) {
+    stop("Argument 'las' does not contain a 'treeID' attribute.")
+  }
+  
+  if (!inherits(inventory, "sf") && !is.data.frame(inventory)) {
+    stop("Argument 'inventory' must be an 'sf' spatial object or data frame.")
+  }
+  
+  if (!"ID_Arbre" %in% names(inventory)) {
+    stop("Argument 'inventory' does not contain the required 'ID_Arbre' column.")
+  }
+  
+  # --- Extraction and Remapping Logic ---
+  las_ids <- unique(las$treeID)
+  las_ids <- las_ids[!is.na(las_ids)]  # Exclude NA values if present
+  target_ids <- inventory$ID_Arbre
+  
+  # Identify IDs present in both LAS and inventory
+  ids_to_remap <- intersect(las_ids, target_ids)
+  
+  if (length(ids_to_remap) == 0) {
+    message("No matching treeIDs found between LAS data and inventory.")
+    return(las)
+  }
+  
+  # Determine new IDs starting from max(las$treeID) + 1
+  max_id <- max(las_ids, na.rm = TRUE)
+  new_ids <- seq(from = max_id + 1, length.out = length(ids_to_remap))
+  
+  # Create a lookup mapping from old matching IDs to new IDs
+  map_vector <- stats::setNames(new_ids, ids_to_remap)
+  
+  # Identify points in LAS that need updating
+  mask <- las$treeID %in% ids_to_remap
+  
+  # Perform remapping on LAS points
+  las$treeID[mask] <- as.integer(map_vector[as.character(las$treeID[mask])])
+  
+  return(las)
+}
+
 #' Create a Tree Matching Table
 #'
 #' Matches LiDAR-detected trees with trees from a field inventory.
@@ -15,32 +84,47 @@ aim_matching_table = function(las, inventory)
   missing <- setdiff(required, names(las))
   if (length(missing) > 0)
     stop("Missing required column(s): ", paste(missing, collapse = ", "))
-
+  
+  treeID = unique(las$treeID)
+  targetID = inventory$ID_Arbre
+  
+  if (any(treeID %in% targetID)) {
+    stop("Some tree IDs in the point cloud are also in the inventory tree IDs. This can cause matching issues. Call aim_disentangle_ids() first.")
+  }
+  
   hag <- NULL
-  z   <- max(inventory$POM) + 2
+  z   <- max(inventory$POM, na.rm = TRUE) + 2.5
   useful <- lidR::filter_poi(las, hag <= z)
-
+  
   n <- nrow(inventory)
   results <- vector("list", n)
   pb <- utils::txtProgressBar(min = 0, max = n, style = 3)
-
+  
   for (i in seq_len(n))
   {
-    if (i %% 10 == 0) gc()
     tree = inventory[i, ]
     res = aim_fit_tree(useful, tree)
     results[[i]] = aim_make_matching_table(res, tree$ID_Arbre)
-
+    
     nfit = 0
-    if (length(results[[i]]$treeID) > 1L || !is.na(results[[i]]$treeID)) nfit = length(res)
+    if (length(results[[i]]$treeID) > 1L || !is.na(results[[i]]$treeID)) {
+      nfit = length(res)
+    }
     results[[i]]$nfit = nfit
+    
     utils::setTxtProgressBar(pb, i)
   }
   close(pb)
-  out <- do.call(rbind, results)
-
+  
+  # rbindlist is significantly faster for data.frames/data.tables
+  if (requireNamespace("data.table", quietly = TRUE)) {
+    out <- as.data.frame(data.table::rbindlist(results))
+  } else {
+    out <- do.call(rbind, results)
+  }
+  
   class(out) <- c("aim_matching_table", class(out))
-  out
+  return(out)
 }
 
 aim_make_matching_table = function(res, target_id)
@@ -69,15 +153,15 @@ aim_make_matching_table = function(res, target_id)
 aim_reassign_ids <- function(las, matching_table)
 {
   v = las$treeID
-
+  
   # Check v
   if (!is.numeric(v) || !is.atomic(v) || is.object(v))
-    stop("v must be a numeric vector.")
+    stop("las$treeID must be a numeric vector.")
   if (any(!is.na(v) & !is.finite(v)))
-    stop("v must contain only finite values or NA.")
+    stop("las$treeID must contain only finite values or NA.")
   if (!is.integer(v))
-    stop("v must be of integer type")
-
+    stop("las$treeID must be of integer type")
+  
   # Check matching_table
   if (!is.data.frame(matching_table))
     stop("matching_table must be a data.frame.")
@@ -85,7 +169,7 @@ aim_reassign_ids <- function(las, matching_table)
   missing <- setdiff(required, names(matching_table))
   if (length(missing) > 0)
     stop("matching_table is missing required column(s): ", paste(missing, collapse = ", "))
-
+  
   # Check ID columns
   for (name in required)
   {
@@ -97,49 +181,59 @@ aim_reassign_ids <- function(las, matching_table)
     if (any(!is.na(x) & x != floor(x)))
       stop("matching_table$", name, " must contain integer values.")
   }
-
+  
   if (anyNA(matching_table$targetID))
     stop("matching_table$targetID must not contain NA values.")
   if (anyNA(matching_table$treeID))
     matching_table <- matching_table[!is.na(matching_table$treeID), , drop = FALSE]
-
+  
   if (length(v) == 0 || nrow(matching_table) == 0)
     return(v)
-
+  
   # treeID must be unique: each source maps to exactly one target
   if (anyDuplicated(matching_table$treeID))
   {
     warning("Matching table contains duplicated 'treeID': use aim_resolve_multi_matching().", call. = FALSE)
     matching_table <- matching_table[
       !duplicated(matching_table$treeID) &
-      !duplicated(matching_table$treeID, fromLast = TRUE),
+        !duplicated(matching_table$treeID, fromLast = TRUE),
       ,
       drop = FALSE
     ]
   }
-
+  
+  # Identity rows (e.g. 54 -> 54) change nothing. They must NOT be treated as
+  # real rules: otherwise the ID is considered "handled" by the temp-routing
+  # and is not protected from the points reassigned to it (e.g. 105 -> 54),
+  # which would silently merge the two trees.
+  matching_table <- matching_table[matching_table$treeID != matching_table$targetID, , drop = FALSE]
+  
+  if (nrow(matching_table) == 0)
+    return(v)
+  
   src_ids <- as.integer(matching_table$treeID)
   tgt_ids <- as.integer(matching_table$targetID)
   n_src   <- length(src_ids)
-
-  # Identify pre-existing values in v that would collide with a targetID
-  # x collides if it's one of the targetIDs but is NOT itself a treeID.
-  # If x IS a treeID (including a self-map like 8 -> 8), it's already handled
-  # correctly by the temp-routing below and must NOT be bumped here - bumping
-  # it would move it out of reach of its own rule (this was the 8 -> 8 bug).
+  
+  # Identify pre-existing values in v that would collide with a targetID.
+  # A target collides if it is NOT itself a source: a source ID is moved to a
+  # temporary ID in Phase 1 and leaves its original value, so it frees the slot.
+  # Identity rows were removed above, so a target that is also a source is
+  # guaranteed to be moved elsewhere.
   colliding_targets <- setdiff(unique(tgt_ids), unique(src_ids))
-  # only the VALUES actually present in v matter - and each distinct value must
-  # map to one single new id (all its occurrences must stay together as a group)
+  
+  # Only the VALUES actually present in v matter, and each distinct value must
+  # map to one single new id (all its occurrences must stay together as a group).
   bump_values <- intersect(unique(v), colliding_targets)
   n_bump      <- length(bump_values)
-
-  # Build collision-free temporary / replacement IDs
-  # Must exceed EVERYTHING that could appear: v, all treeIDs, all targetIDs
+  
+  # Build collision-free temporary / replacement IDs.
+  # Must exceed EVERYTHING that could appear: v, all treeIDs, all targetIDs.
   max_val  <- max(c(v, src_ids, tgt_ids), na.rm = TRUE)
   new_pool <- max_val + seq_len(n_src + n_bump)
-  temp_ids <- new_pool[seq_len(n_src)]                  # one temp slot per mapping row
-  bump_ids <- new_pool[n_src + seq_len(n_bump)]         # one fresh id per bumped VALUE
-
+  temp_ids <- new_pool[seq_len(n_src)]            # one temp slot per mapping row
+  bump_ids <- new_pool[n_src + seq_len(n_bump)]   # one fresh id per bumped VALUE
+  
   # Phase 0: move pre-existing colliding values out of the way first
   if (n_bump > 0)
   {
@@ -147,17 +241,17 @@ aim_reassign_ids <- function(las, matching_table)
     hit0 <- !is.na(idx0)
     v[hit0] <- bump_ids[idx0[hit0]]
   }
-
+  
   # Phase 1: source -> temporary
   idx1 <- match(v, src_ids)
   hit1 <- !is.na(idx1)
   v[hit1] <- temp_ids[idx1[hit1]]
-
+  
   # Phase 2: temporary -> target
   idx2 <- match(v, temp_ids)
   hit2 <- !is.na(idx2)
   v[hit2] <- tgt_ids[idx2[hit2]]
-
+  
   return(v)
 }
 
@@ -191,6 +285,7 @@ aim_resolve_multi_matching = function(las, matching_table, inventory)
     res = aim_fit_tree(las, dubInventory[i,])
     seeds = lapply(res, function(x) x$seeds)
     seeds = do.call(rbind, seeds)
+    if (is.matrix(seeds)) seeds = as.data.frame(seeds)
     seeds$treeID = dubInventory[i,]$ID_Arbre
     seeds
   })

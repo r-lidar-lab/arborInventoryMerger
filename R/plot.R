@@ -9,6 +9,7 @@ aim_add_inventory3d = function(x, inventory)
   xyz = sf::st_coordinates(inventory)
   r  = inventory$DHP/2
   aim_circle3d(x, xyz[,1], xyz[,2], r, xyz[,3])
+  rgl::texts3d(xyz[,1]-x[1], xyz[,2]-x[2]+0.1, xyz[,3]+0.1, texts = inventory$ID_Arbre, col = "white")
 }
 
 aim_circle3d <- function(x, center_x, center_y, radius, height, col = "green")
@@ -65,7 +66,7 @@ aim_view = function(las, inventory, res)
   yc = xyz[,2]
   zc = xyz[,3]
   radius = inventory$DHP/2
-  h2 = lidR::filter_poi(las,  Z < zc+2, hag > 0.25, abs(X - xc) < radius*5, abs(Y - yc) < radius*5)
+  h2 = lidR::filter_poi(las,  Z < zc+2.2, hag > 0.25, abs(X - xc) < radius*5, abs(Y - yc) < radius*5)
   x <- arbor::plot_instance(h2, size = 2)
   aim_circle3d(x, xc, yc, radius,  zc)
   lapply(res, function(y)

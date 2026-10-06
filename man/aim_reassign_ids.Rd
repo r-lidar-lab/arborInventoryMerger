@@ -18,3 +18,9 @@ A vector with tree IDs reassigned according to matching_table.
 \description{
 Reassigns tree IDs in a vector according to a matching table.
 }
+\details{
+Pre-existing IDs in the data that are not themselves reassigned but that
+coincide with a target ID are first moved to fresh, unused IDs, so they are
+never merged with the points that are reassigned to that target.
+Identity rows (treeID == targetID) are no-ops and are ignored.
+}

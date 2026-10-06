@@ -3,6 +3,7 @@
 S3method(print,aim_fit)
 S3method(print,aim_matching_table)
 export(aim_add_inventory3d)
+export(aim_disentangle_ids)
 export(aim_inventory)
 export(aim_matching_table)
 export(aim_reassign_ids)

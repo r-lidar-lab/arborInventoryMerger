@@ -4,7 +4,15 @@
 
 While it is not specific to UMR AMAP's data, it requires highly accurate ground inventories in order to fix issues in the instance segmentation and reassign the correct tree IDs from the ground inventory to the corresponding inventory trees.
 
-**Thus, this is not a general purpose tool.**
+**Thus, this is NOT a general purpose tool designed for any user.**
+
+The contract of this package is the following: the user provides the positions and IDs of the trees, and the package uses this information to disentangle the segmentation by merging, subdividing, or reassigning tree IDs.
+
+The underlying assumption is:
+
+> We, the users, know precisely where the trees are. You, the software, will leverage that information to improve the segmentation and match the IDs.
+
+This can only work if the inventory is highly accurate. AIM performs very little actual *search* for trees; it trusts the provided inventory. It can tolerate some positioning error, but the errors must be very limited.
 
 ## Installation
 
@@ -14,6 +22,8 @@ pak::pak("r-lidar-lab/arborInventoryMerger")
 ```
 
 ## Tutorial
+
+Users can find a more reproducible and comprehensive script in [MRE.R](inst/extdata/mre.R). However, please read the tutorial first, as it provides the necessary explanations.
 
 ### 1. Segmentation
 
@@ -29,7 +39,7 @@ las  <- lidR::readTLS("segmented.laz")
 dtm  <- terra::rast("dtm.tif")
 ```
 
-### 3. Spatialize and validate the inventory
+### 3. Spatialize and Validate the Inventory
 
 Convert the raw inventory `data` to an sf spatial object and check the validity of the data. Among other things, `aim_inventory()` checks whether tree IDs are integers, guesses column names, validates the absence of duplicates, checks for intersecting trees, and so on. Most errors committed by `arborInventoryMerger` are actually errors from the inventory, thus we backed it with a deep internal check of the reference data.
 
@@ -52,7 +62,7 @@ inventory <- aim_inventory(data, dtm)
 #>   [Warning] Circles 182 and 183 overlap by 69.57%
 ```
 
-Depending on the quality of the data (mostly compliance to a valid standard), you may need to fix the data first by renaming some columns or converting strings to numbers. E.g.:
+Depending on the quality of the data (mostly compliance to a valid standard), you may need to fix the data first by renaming some columns or converting strings to numbers if the function does not solve it automatically. E.g.:
 
 ```r
 data$ID_Arbre <- as.integer(data$ID_Arbre)
@@ -60,16 +70,24 @@ names(data)[5] <- "POM"
 data <- dplyr::filter(data, !is.na(X_correg))
 ```
 
-### 4. Filter trees outside the point cloud
+### 4. Filter Trees Outside the Point Cloud
 
-To avoid errors from unmatched trees that fall outside the point cloud, remove those trees from the inventory.
+To avoid errors from unmatched trees that are outside the point cloud, remove those trees from the inventory if any.
 
 ```r
 hull      <- sf::st_convex_hull(lidR::filter_poi(las, hag > 0.5, hag < 2))
 inventory <- sf::st_filter(inventory, hull)
 ```
 
-### 5. Compute the matching table
+### 5. Pre-Clean the Point Cloud
+
+This function aims to avoid IDs intersections between the point cloud and the inventory. In practice some IDs intersections are difficult to handle internally. The simplest way to do not over-engineer the source code is to avoid IDs overlap by pre-processing the data.
+
+```r
+las <- aim_disentangle_ids(las, inventory)
+```
+
+### 6. Compute the Matching Table
 
 Compute the matching table.
 
@@ -79,7 +97,7 @@ matching_table <- aim_matching_table(las, inventory)
 
 ![](man/figures/matching0.png)
 
-### 6. Reassign IDs
+### 7. Reassign IDs
 
 Use the matching table to reassign tree IDs. This assigns each tree in the original arbor's segmentation the correct ID from the inventory, **and** repairs (to some extent) the segmentation of trees that may have been poorly segmented (especially large buttressed trees).
 
@@ -89,7 +107,7 @@ las$treeID <- aim_reassign_ids(las$treeID, matching_table)
 
 ![](man/figures/matching1.png)
 
-### 7. Split trees
+### 8. Split trees
 
 In some cases, the matching table may contain a duplicated reassignment. This happens when arbor detects one tree (e.g., tree 123) but the inventory actually maps it to two or more trees (e.g., trees 12 and 13). In that case, the matching table finds that arbor's tree 123 must be reassigned to both inventory trees 12 and 13. This is impossible and generates a conflict. When this happens, use `aim_resolve_multi_matching()`. This function re-segments the trees using the inventory as a helper.
 
@@ -99,7 +117,7 @@ las$treeID <- aim_resolve_multi_matching(las, matching_table, inventory)
 
 ![](man/figures/matching2.png)
 
-### 8. Plot
+### 9. Plot
 
 Render in 3D to check the results
 

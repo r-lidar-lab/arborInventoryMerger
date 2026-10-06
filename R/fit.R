@@ -1,4 +1,4 @@
-aim_fit_slice = function(slice, xc, yc, zc, radius, zoffset, plot = FALSE)
+aim_fit_slice = function(slice, xc, yc, zc, radius, pom, zoffset, plot = FALSE)
 {
   X <- Y <- Z <- . <- hag <- treeID <- NULL
 
@@ -11,7 +11,8 @@ aim_fit_slice = function(slice, xc, yc, zc, radius, zoffset, plot = FALSE)
 
   if (nrow(slice) < 3)  return(NULL)
   if (max(slice$hag) < 0.5) return(NULL)
-
+  if (min(slice$hag) > 2*pom) return(NULL)
+  
   xyz <- as.matrix(slice[, .(X,Y,Z)])
   res <- arbor:::fit_circloid_cpp(xyz, tolerance = 0.03, complexity = 3)
 
@@ -39,7 +40,7 @@ aim_fit_slice = function(slice, xc, yc, zc, radius, zoffset, plot = FALSE)
 
 aim_fit_tree = function(las, inventory)
 {
-  X <- Y <- Z <- . <- hag <- treeID <- NULL
+  X <- Y <- Z <- . <- hag <- treeID <- V1 <- NULL
 
   if (nrow(inventory) > 1L) stop("Cannot process multiple trees")
 
@@ -48,21 +49,32 @@ aim_fit_tree = function(las, inventory)
   yc  <- xyz[,2]
   zc  <- xyz[,3]
   radius <- inventory$DHP/2
+  pom <- inventory$POM
   search_radius_factor <- 1.5
-  offsets <- seq(-2,2, by = 0.5)
+  offsets <- c(-2, -1.5, -1, -0.75, -0.5, 0, 0.5, 1, 1.5, 2)
   res <- vector("list", length(offsets))
 
-  pc <- las@data[abs(X - xc) < radius*5 & abs(Y - yc) < radius*5, .(X,Y,Z,hag,treeID)]
-
+  pc <- las@data[sqrt((X - xc)^2 + (Y - yc)^2) < radius*5 & Z < zc+3, .(X,Y,Z,hag,treeID)]
+  
+  if (nrow(pc) > 0)
+  {
+    cl <- dbscan::dbscan(pc[, .(X,Y,Z)], eps = 0.1)
+    pc$cl <- cl$cluster
+    min_height_by_cl = pc[cl > 0, min(hag), by = cl]
+    keep_cl = min_height_by_cl[V1 < 0.75]$cl
+    pc = pc[cl %in% keep_cl]
+  }
+  
   it <- 0
   while (it <= 3)
   {
     it = it + 1
-    slice = pc[abs(X - xc) < radius*search_radius_factor & abs(Y - yc) < radius*search_radius_factor]
+    slice = pc[sqrt((X - xc)^2 + (Y - yc)^2) < radius*search_radius_factor]
 
     for (i in seq_along(offsets))
     {
-      res[[i]] <- aim_fit_slice(slice, xc, yc, zc, radius, offsets[i])
+      ans <- aim_fit_slice(slice, xc, yc, zc, radius, pom, offsets[i], FALSE)
+      res[[i]] <- ans
     }
 
     res <- Filter(Negate(is.null), res)
@@ -85,7 +97,7 @@ aim_fit_tree = function(las, inventory)
     if (length(candidates) == 1)
     {
       msg = paste0("No tree detected for tree " , inventory$ID_Arbre, " but a single candidate ID was found and used.")
-      res <- list(list(to_be_merge_id = candidates))
+      res <- list(list(center_x = xyz[,1], center_y = xyz[,2], center_z = xyz[,3], to_be_merge_id = candidates, seeds = xyz))
       class(res[[1]]) <- c("aim_fit", class(res))
       warning(msg, call. = FALSE)
     }
