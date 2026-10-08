@@ -21,7 +21,7 @@ This can only work if the inventory is highly accurate. AIM performs very little
 pak::pak("r-lidar-lab/arborInventoryMerger")
 ```
 
-## Tutorial
+## Tutorial: inventory merging
 
 (See also [mre.R](https://github.com/r-lidar-lab/arborInventoryMerger/blob/master/inst/extdata/mre.R) with all the code you need.)
 
@@ -134,7 +134,7 @@ lidR::add_dtm3d(x, dtm)
 
 ![](man/figures/gndinventory.png)
 
-### Debug tools
+### 10. Debug tools
 
 Debug and understand what is happening for a given tree with inventory's ID = `id`. This helps in understanding the internal routine and debugging some edge cases.
 
@@ -143,3 +143,20 @@ tree <- dplyr::filter(inventory, ID_Arbre == id)
 res  <- arborInventoryMerger:::aim_fit_tree(las, tree)
 arborInventoryMerger:::aim_view(las, tree, res)
 ```
+
+## Tutorial: Inventory Correction
+
+For the previous tools to work, an accurate inventory is required. AIM includes a small `rgl` app that allows you to reposition the tree inventory interactively. Using the segmented point cloud `las` and the inventory (see `aim_inventory()` above):
+
+```r
+corrected_inventory <- aim_inventory_editor(las, inventory)
+```
+
+1. Move around in the scene.
+2. <kbd>Right click</kbd> on an inventory tree to select it.
+3. <kbd>Right click</kbd> on a point to move the inventory tree in `XY` mode. In `XY` mode, regardless of the `Z` coordinate of the clicked point, the elevation of the inventory tree (point of measurement) remains unchanged. The circle is moved to the clicked `XY` coordinates and then automatically snapped to the tree.
+4. Alternatively, <kbd>Middle click</kbd> on a point to move the inventory tree in `XYZ` mode. In `XYZ` mode, regardless of the `Z` coordinate of the inventory tree (point of measurement), the tree is moved to the clicked `XYZ` coordinates and then automatically snapped to the tree at that height. This also allows you to edit the point of measurement.
+5. Repeat from step 1 to edit another tree.
+6. Close the app to obtain the updated inventory.
+
+![](man/figures/editor.gif)

@@ -2,14 +2,19 @@
 % Please edit documentation in R/plot.R
 \name{aim_add_inventory3d}
 \alias{aim_add_inventory3d}
+\alias{aim_add_treelabels3d}
 \title{View inventory in 3D}
 \usage{
 aim_add_inventory3d(x, inventory)
+
+aim_add_treelabels3d(x, las)
 }
 \arguments{
 \item{x}{A numeric vector for translation offsets. Like in the lidR package.}
 
 \item{inventory}{created by \link{aim_inventory}}
+
+\item{las}{Segmented point cloud}
 }
 \description{
 View inventory in 3D

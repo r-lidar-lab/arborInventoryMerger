@@ -2,14 +2,41 @@
 #'
 #' @param inventory created by \link{aim_inventory}
 #' @param x A numeric vector for translation offsets. Like in the lidR package.
+#' @param las Segmented point cloud
 #'
 #' @export
+#' @rdname inventory-rendering
 aim_add_inventory3d = function(x, inventory)
 {
   xyz = sf::st_coordinates(inventory)
   r  = inventory$DHP/2
   aim_circle3d(x, xyz[,1], xyz[,2], r, xyz[,3])
-  rgl::texts3d(xyz[,1]-x[1], xyz[,2]-x[2]+0.1, xyz[,3]+0.1, texts = inventory$ID_Arbre, col = "white")
+  rgl::texts3d(xyz[,1]-x[1], xyz[,2]-x[2], xyz[,3]+0.1, texts = inventory$ID_Arbre, col = "green")
+}
+
+#'
+#' @export
+#' @rdname inventory-rendering
+aim_add_treelabels3d <- function(x, las) 
+{
+  dat <- las@data
+
+  labels <- dat[hag < 1,.(X = mean(X),Y = mean(Y)), by = treeID]
+  z <- dat[, .(Z = min(Z) - 0.1), by = treeID]
+  
+  labels <- merge(labels, z, by = "treeID")
+  labels[, X := X - x[1]]
+  labels[, Y := Y - x[2]]
+  
+  rgl::text3d(
+    labels$X,
+    labels$Y,
+    labels$Z,
+    texts = labels$treeID,
+    col = "white"
+  )
+  
+  invisible(x)
 }
 
 aim_circle3d <- function(x, center_x, center_y, radius, height, col = "green")

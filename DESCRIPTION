@@ -1,7 +1,7 @@
 Package: arborInventoryMerger
 Type: Package
 Title: Improves the arbor's instance segmentation using an accurate spatialized inventory
-Version: 1.1.0
+Version: 1.2.0
 Author: Jean-Romain Roussel
 Maintainer: Jean-Romain Roussel <info@r-lidar.com>
 Description: Improves the arbor's instance segmentation using an accurate spatialized inventory.
