@@ -53,7 +53,8 @@ circloid_snaper <- function(xyz)
 #' clicked XY with radius \code{radius_factor * DHP / 2}. Default is 1.5.
 #'
 #' @return An \code{sf} object identical to \code{inventory} except for its
-#' geometry, which is now \code{XYZ} with the edited tree positions.
+#' geometry, which is now \code{XYZ} with the edited tree positions, and its
+#' \code{POM} attribute, which is shifted by the same delta Z as the geometry.
 #'
 #' @export
 aim_inventory_editor <- function(las, inventory, pick_radius = 15, z_range = c(0.5, 4), slice_dz = 0.10, radius_factor = 1.5)
@@ -82,7 +83,9 @@ aim_inventory_editor <- function(las, inventory, pick_radius = 15, z_range = c(0
   inv_xyz <- sf::st_coordinates(inventory)
   inv_xyz[,1] = inv_xyz[,1] - offsets[1]
   inv_xyz[,2] = inv_xyz[,2] - offsets[2]
-  if (ncol(inv_xyz) < 3) inv_xyz <- cbind(inv_xyz, Z = min(pc_xyz[, 3]))
+  has_z <- ncol(inv_xyz) == 3
+  if (!has_z) stop("The coordinates do not have Z component")
+  z0 <- inv_xyz[, 3]
   
   inv_df <- data.frame(
     ID = if ("ID_Arbre" %in% names(inventory)) as.character(inventory$ID_Arbre) else as.character(seq_len(nrow(inventory))),
@@ -322,6 +325,8 @@ aim_inventory_editor <- function(las, inventory, pick_radius = 15, z_range = c(0
   inv_out$Y <- inv_out$Y + offsets[2]
   
   updated_sf <- inventory
+  updated_sf$POM <- round(updated_sf$POM + (inv_out$Z - z0), 2)
+
   new_geom <- sf::st_as_sf(inv_out, coords = c("X", "Y", "Z"), dim = "XYZ", crs = sf::st_crs(inventory))
   sf::st_geometry(updated_sf) <- sf::st_geometry(new_geom)
   updated_sf
