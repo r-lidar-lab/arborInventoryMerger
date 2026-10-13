@@ -280,8 +280,13 @@ aim_resolve_multi_matching = function(las, matching_table, inventory)
   #x = arbor::plot_instance(lidR::filter_poi(las, treeID %in% dupIDs))
   #aim_add_inventory3d(x, dubInventory)
 
-  seeds = lapply(1:nrow(dubInventory), function(i)
+  n = nrow(dubInventory)
+  pb = utils::txtProgressBar(min = 0, max = n, style = 3)
+  on.exit(close(pb), add = TRUE)
+
+  seeds = lapply(seq_len(n), function(i)
   {
+    utils::setTxtProgressBar(pb, i)
     res = aim_fit_tree(las, dubInventory[i,])
     seeds = lapply(res, function(x) x$seeds)
     seeds = do.call(rbind, seeds)

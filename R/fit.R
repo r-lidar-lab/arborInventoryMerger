@@ -104,7 +104,7 @@ aim_fit_tree = function(las, inventory)
     else
     {
       msg <- paste0("No tree detected for tree " , inventory$ID_Arbre)
-      res <- list(list(to_be_merge_id = NA_integer_))
+      res <- list(list(center_x = xyz[,1], center_y = xyz[,2], center_z = xyz[,3], to_be_merge_id = NA_integer_, seeds = xyz))
       class(res[[1]]) <- c("aim_fit", class(res))
       warning(msg, call. = FALSE)
     }
