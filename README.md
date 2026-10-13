@@ -102,7 +102,7 @@ matching_table <- aim_matching_table(las, inventory)
 Use the matching table to reassign tree IDs. This assigns each tree in the original arbor's segmentation the correct ID from the inventory, **and** repairs (to some extent) the segmentation of trees that may have been poorly segmented (especially large buttressed trees).
 
 ```r
-las$treeID <- aim_reassign_ids(las$treeID, matching_table)
+las$treeID <- aim_reassign_ids(las, matching_table)
 ```
 
 ![](man/figures/matching1.png)
