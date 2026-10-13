@@ -64,11 +64,13 @@ aim_inventory_editor <- function(las, inventory, pick_radius = 15, z_range = c(0
   
   treeloc = bottom@data[, .(X = mean(X), Y = mean(Y)), by = treeID]
   treeloc = sf::st_as_sf(treeloc, coords = c("X", "Y"))
+  sf::st_crs(treeloc) = sf::st_crs(inventory)
   near <- sf::st_is_within_distance(treeloc, inventory, dist = 4)
   treeloc <- treeloc[lengths(near) > 0, ]
   
   bottom = filter_poi(bottom, treeID %in% treeloc$treeID)
-  
+  if (lidR::is.empty(bottom)) stop("No segmented tree found within 4 m of an inventory tree", call. = FALSE)
+
   offsets <- arbor::plot_instance(bottom)
   
   pc_xyz <- bottom@data
@@ -98,6 +100,16 @@ aim_inventory_editor <- function(las, inventory, pick_radius = 15, z_range = c(0
   # ---------- scene ----------
   
   dev <- rgl::cur3d()
+  if (dev == 0L) {
+    # plot_instance() did not leave an open device (e.g. nothing was drawn or the window
+    # is not created yet): give the window system a moment, then fail with a clear message
+    for (i in 1:50) {
+      Sys.sleep(0.1)
+      dev <- rgl::cur3d()
+      if (dev != 0L) break
+    }
+    if (dev == 0L) stop("No rgl device is open: plot_instance() did not create a window (no tree within 4 m of the inventory?)", call. = FALSE)
+  }
   sub <- rgl::currentSubscene3d(dev)
   
   st <- new.env()
