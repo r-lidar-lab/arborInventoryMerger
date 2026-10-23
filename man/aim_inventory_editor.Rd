@@ -35,7 +35,8 @@ clicked XY with radius \code{radius_factor * DHP / 2}. Default is 1.5.}
 }
 \value{
 An \code{sf} object identical to \code{inventory} except for its
-geometry, which is now \code{XYZ} with the edited tree positions.
+geometry, which is now \code{XYZ} with the edited tree positions, and its
+\code{POM} attribute, which is shifted by the same delta Z as the geometry.
 }
 \description{
 Opens a 3D \code{rgl} window showing the point cloud (restricted to the

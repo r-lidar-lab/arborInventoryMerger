@@ -9,7 +9,7 @@ aim_disentangle_ids(las, inventory)
 \arguments{
 \item{las}{A \code{LAS} object containing point cloud data with a \code{treeID} attribute.}
 
-\item{inventory}{An \code{sf} object containing forest inventory data with an \code{ID_Arbre} column.}
+\item{inventory}{An \code{sf} object produced by \link{aim_inventory}.}
 }
 \value{
 A \code{LAS} object with updated tree IDs, or the original \code{LAS} object

@@ -321,3 +321,36 @@ aim_inventory <- function(data, dtm)
   
   return(inventory)
 }
+
+# Inventory as the plain data.frame expected by arbor's C++ functions:
+# columns ID_Arbre, X, Y, Z, DHP, POM
+aim_inventory_df <- function(inventory)
+{
+  if (inherits(inventory, "sf"))
+  {
+    xyz <- sf::st_coordinates(inventory)
+    if (!"Z" %in% colnames(xyz)) stop("The inventory must have XYZ coordinates. Use aim_inventory().")
+    df <- sf::st_drop_geometry(inventory)
+    df$X <- xyz[, "X"]
+    df$Y <- xyz[, "Y"]
+    df$Z <- xyz[, "Z"]
+  }
+  else
+  {
+    df <- as.data.frame(inventory)
+  }
+
+  required <- c("ID_Arbre", "X", "Y", "Z", "DHP", "POM")
+  missing <- setdiff(required, names(df))
+  if (length(missing) > 0)
+    stop("The inventory is missing required column(s): ", paste(missing, collapse = ", "), ". Use aim_inventory().")
+
+  data.frame(
+    ID_Arbre = df$ID_Arbre,
+    X   = as.numeric(df$X),
+    Y   = as.numeric(df$Y),
+    Z   = as.numeric(df$Z),
+    DHP = as.numeric(df$DHP),
+    POM = as.numeric(df$POM)
+  )
+}
